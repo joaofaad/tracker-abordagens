@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracker de Abordagens — Sales Capital</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,200;0,300;0,400;0,500;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --gold-dark: #9A7A2E;
+    --bg-dark: #0D0906;
+    --bg-mid: #1A100A;
+    --text-light: #F5EDD8;
+    --text-muted: #9E8B70;
+    --text-dim: #6A5A45;
+    --green: #6BAF82;
+    --red: #C96050;
+    --blue: #5A8AAF;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { height: 100%; }
+
+  body {
+    background: var(--bg-dark);
+    color: var(--text-light);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    flex-shrink: 0;
+    background: rgba(13,9,6,0.97);
+    border-bottom: 1px solid rgba(201,168,76,0.18);
+    padding: 0 3rem;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 50;
+  }
+  .nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 400; letter-spacing: 0.18em; color: var(--text-light); }
+  .nav-logo .slash { color: var(--gold); font-weight: 200; }
+  .nav-right { display: flex; align-items: center; gap: 0.5rem; font-size: 0.6rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--text-dim); }
+  .nav-right .dot { width: 4px; height: 4px; background: var(--gold-dark); border-radius: 50%; }
+
+  /* ─── STATUS INDICATOR ─── */
+  .sync-status {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.3s;
+  }
+  .sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .sync-status.ok    { color: var(--green); }
+  .sync-status.ok    .sync-dot { background: var(--green); }
+  .sync-status.error { color: var(--red); }
+  .sync-status.error .sync-dot { background: var(--red); }
+  .sync-status.sending { color: var(--gold); }
+  .sync-status.sending .sync-dot { background: var(--gold); animation: pulse 0.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ─── SETUP BANNER ─── */
+  .setup-banner {
+    flex-shrink: 0;
+    background: rgba(201,168,76,0.07);
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+    padding: 0.65rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .setup-banner.hidden { display: none; }
+  .setup-banner-text { font-size: 0.7rem; letter-spacing: 0.06em; color: var(--text-muted); }
+  .setup-banner-text strong { color: var(--gold-light); font-weight: 400; }
+  .setup-banner-input {
+    flex: 1;
+    max-width: 520px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(201,168,76,0.3);
+    padding: 0.4rem 0.85rem;
+    color: var(--text-light);
+    font-family: 'Jost', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 300;
+    outline: none;
+  }
+  .setup-banner-input:focus { border-color: rgba(201,168,76,0.6); }
+  .setup-banner-input::placeholder { color: var(--text-dim); }
+  .btn-save-url {
+    padding: 0.4rem 1.2rem;
+    background: var(--gold);
+    border: none;
+    color: var(--bg-dark);
+    font-family: 'Jost', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .btn-save-url:hover { background: var(--gold-light); }
+  .btn-clear-url {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-dim);
+    font-family: 'Jost', sans-serif;
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-clear-url:hover { border-color: rgba(201,168,76,0.3); color: var(--text-muted); }
+
+  /* ─── STATS BAR ─── */
+  .stats-bar {
+    flex-shrink: 0;
+    background: var(--bg-mid);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    padding: 0 3rem;
+  }
+  .stat-item { padding: 1.1rem 0 1.1rem 2rem; border-right: 1px solid rgba(255,255,255,0.04); }
+  .stat-item:first-child { padding-left: 0; }
+  .stat-item:last-child { border-right: none; }
+  .stat-label { font-size: 0.58rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.35rem; }
+  .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 2.8rem; font-weight: 200; color: var(--gold-light); line-height: 1; letter-spacing: -0.02em; }
+  .stat-value.n { color: var(--text-muted); }
+  .stat-value.g { color: var(--green); }
+
+  /* ─── WORKSPACE ─── */
+  .workspace { flex: 1; display: grid; grid-template-columns: 360px 1fr; overflow: hidden; }
+
+  /* ─── FORM PANEL ─── */
+  .panel-form {
+    background: var(--bg-mid);
+    border-right: 1px solid rgba(255,255,255,0.04);
+    padding: 2rem 2.2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .panel-form::before {
+    content: ''; position: absolute; bottom: -10%; left: 50%; transform: translateX(-50%);
+    width: 80%; height: 40%;
+    background: radial-gradient(ellipse, rgba(140,55,10,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .panel-eyebrow { font-size: 0.58rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.5rem; }
+  .panel-heading { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-light); margin-bottom: 0.6rem; }
+  .gold-line { width: 36px; height: 1px; background: var(--gold); margin-bottom: 1.8rem; }
+  .form-group { margin-bottom: 1.1rem; position: relative; z-index: 1; }
+  .form-group label { display: block; font-size: 0.58rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.45rem; }
+  .form-group input, .form-group select {
+    width: 100%; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    padding: 0.65rem 0.9rem; color: var(--text-light); font-family: 'Jost', sans-serif;
+    font-size: 0.85rem; font-weight: 300; outline: none; transition: border-color 0.25s, background 0.25s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.03); }
+  .form-group input::placeholder { color: var(--text-dim); }
+  .form-group select option { background: #1A100A; color: var(--text-light); }
+  .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  /* ─── CHIPS ─── */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .chip {
+    padding: 0.32rem 0.9rem; border: 1px solid rgba(255,255,255,0.06);
+    font-family: 'Jost', sans-serif; font-size: 0.7rem; font-weight: 300; letter-spacing: 0.08em;
+    color: var(--text-dim); background: transparent; cursor: pointer; transition: all 0.2s;
+  }
+  .chip:hover { border-color: rgba(201,168,76,0.3); color: var(--text-muted); }
+  .chip.active { background: rgba(201,168,76,0.12); border-color: rgba(201,168,76,0.45); color: var(--gold-light); }
+
+  /* ─── BUTTON ─── */
+  .btn-add {
+    width: 100%; padding: 0.85rem; background: transparent;
+    border: 1px solid rgba(201,168,76,0.35); color: var(--gold-light);
+    font-family: 'Jost', sans-serif; font-size: 0.62rem; font-weight: 400;
+    letter-spacing: 0.28em; text-transform: uppercase; cursor: pointer;
+    transition: all 0.3s; margin-top: 0.75rem; position: relative; z-index: 1; overflow: hidden;
+  }
+  .btn-add::before {
+    content: ''; position: absolute; inset: 0; background: var(--gold);
+    transform: scaleX(0); transform-origin: left; transition: transform 0.28s ease; z-index: -1;
+  }
+  .btn-add:hover { color: var(--bg-dark); border-color: var(--gold); }
+  .btn-add:hover::before { transform: scaleX(1); }
+  .btn-add:active { transform: scale(0.99); }
+  .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-add:disabled::before { display: none; }
+
+  /* ─── LIST PANEL ─── */
+  .panel-list {
+    background: var(--bg-dark); padding: 2rem 2.5rem; overflow-y: auto;
+    display: flex; flex-direction: column; position: relative;
+  }
+  .panel-list::before {
+    content: ''; position: absolute; bottom: -5%; left: 30%; width: 60%; height: 50%;
+    background: radial-gradient(ellipse, rgba(120,48,5,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .list-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 1.8rem; position: relative; z-index: 1; }
+  .export-btns { display: flex; gap: 0.5rem; }
+  .btn-export {
+    padding: 0.38rem 1rem; background: transparent; border: 1px solid rgba(255,255,255,0.07);
+    color: var(--text-dim); font-family: 'Jost', sans-serif; font-size: 0.58rem; font-weight: 400;
+    letter-spacing: 0.22em; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .btn-export:hover { border-color: rgba(201,168,76,0.3); color: var(--gold-light); }
+  .btn-export svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+  /* ─── TABLE ─── */
+  .leads-table { width: 100%; border-collapse: collapse; position: relative; z-index: 1; }
+  .leads-table th {
+    font-family: 'Jost', sans-serif; font-size: 0.58rem; font-weight: 400;
+    letter-spacing: 0.25em; text-transform: uppercase; color: var(--text-dim);
+    padding: 0 1rem 0.85rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .leads-table th:first-child { padding-left: 0; }
+  .leads-table td { padding: 0.9rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.025); vertical-align: middle; }
+  .leads-table td:first-child { padding-left: 0; }
+  .leads-table tbody tr { transition: background 0.2s; }
+  .leads-table tbody tr:hover td { background: rgba(255,255,255,0.015); }
+
+  .row-num { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 200; color: var(--text-dim); line-height: 1; width: 28px; opacity: 0.7; }
+  .lead-name { font-size: 0.85rem; font-weight: 300; color: var(--text-light); letter-spacing: 0.02em; }
+  .lead-contact { font-size: 0.78rem; font-weight: 300; color: var(--text-muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .badge { display: inline-block; padding: 0.22rem 0.7rem; font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 400; }
+  .b-instagram  { background: rgba(201,168,76,0.08); color: var(--gold);   border: 1px solid rgba(201,168,76,0.22); }
+  .b-indicacao  { background: rgba(107,175,130,0.08); color: var(--green); border: 1px solid rgba(107,175,130,0.2); }
+  .b-linkedin   { background: rgba(80,130,200,0.08);  color: #82B0DC;      border: 1px solid rgba(80,130,200,0.18); }
+  .b-prospeccao { background: rgba(150,130,190,0.08); color: #B0A0CF;      border: 1px solid rgba(150,130,190,0.18); }
+  .b-comunidade { background: rgba(90,138,175,0.08);  color: #7AABCC;      border: 1px solid rgba(90,138,175,0.2); }
+  .b-trafego    { background: rgba(175,120,60,0.08);  color: #D4956A;      border: 1px solid rgba(175,120,60,0.2); }
+  .b-evento     { background: rgba(200,80,70,0.08);   color: #D08878;      border: 1px solid rgba(200,80,70,0.18); }
+  .b-outro      { border: 1px solid rgba(255,255,255,0.06); color: var(--text-dim); }
+
+  .status-text { font-size: 0.72rem; font-weight: 300; color: var(--text-dim); letter-spacing: 0.04em; }
+  .lead-obs { font-size: 0.72rem; font-weight: 300; color: var(--text-dim); font-style: italic; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lead-time { font-size: 0.72rem; font-weight: 300; color: var(--text-dim); white-space: nowrap; letter-spacing: 0.05em; }
+
+  /* synced indicator on row */
+  .sync-row-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+  .sync-row-dot.synced  { background: var(--green); }
+  .sync-row-dot.pending { background: var(--gold); }
+  .sync-row-dot.failed  { background: var(--red); }
+
+  .btn-del { background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 1.1rem; padding: 0 0.4rem; line-height: 1; transition: color 0.15s; opacity: 0.6; }
+  .btn-del:hover { color: var(--red); opacity: 1; }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 4rem 0; position: relative; z-index: 1; }
+  .empty-logo { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 200; letter-spacing: 0.14em; color: rgba(201,168,76,0.12); }
+  .empty-logo .slash { color: rgba(201,168,76,0.2); }
+  .empty-line { width: 36px; height: 1px; background: rgba(201,168,76,0.15); }
+  .empty-state p { font-size: 0.6rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--text-dim); opacity: 0.6; }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 2rem; right: 2.5rem;
+    background: var(--bg-mid); border: 1px solid rgba(201,168,76,0.35);
+    color: var(--gold-light); font-family: 'Cormorant Garamond', serif;
+    font-size: 0.95rem; font-weight: 300; letter-spacing: 0.1em;
+    padding: 0.75rem 1.8rem; opacity: 0; transform: translateY(8px);
+    transition: all 0.28s ease; pointer-events: none; z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--gold-dark); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">SALES<span class="slash">/</span>CAPITAL</div>
+  <div style="display:flex; align-items:center; gap:1.5rem;">
+    <div class="sync-status" id="sync-status">
+      <div class="sync-dot"></div>
+      <span id="sync-label">Sem conexão</span>
+    </div>
+    <div class="nav-right">
+      <div class="dot"></div>
+      <span id="nav-date"></span>
+    </div>
+  </div>
+</nav>
+
+<!-- SETUP BANNER -->
+<div class="setup-banner" id="setup-banner">
+  <div class="setup-banner-text"><strong>Configure a planilha:</strong> cole abaixo a URL do seu Google Apps Script para ativar a sincronização</div>
+  <input class="setup-banner-input" id="url-input" type="text" placeholder="https://script.google.com/macros/s/SEU_ID_AQUI/exec">
+  <button class="btn-save-url" onclick="saveUrl()">Salvar URL</button>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-label">Abordagens hoje</div>
+    <div class="stat-value" id="s-total">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Instagram</div>
+    <div class="stat-value n" id="s-ig">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Indicação</div>
+    <div class="stat-value g" id="s-ind">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Outros canais</div>
+    <div class="stat-value n" id="s-outros">0</div>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- FORM -->
+  <aside class="panel-form">
+    <div class="panel-eyebrow">Registro</div>
+    <div class="panel-heading">Nova abordagem</div>
+    <div class="gold-line"></div>
+
+    <div class="form-group">
+      <label>Nome do lead</label>
+      <input type="text" id="f-nome" placeholder="Ex: João Silva" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label>Telefone / Perfil Instagram</label>
+      <input type="text" id="f-contato" placeholder="(11) 99999-0000 ou @perfil" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label>Origem do lead</label>
+      <div class="chips" id="origem-chips">
+        <button class="chip" data-value="instagram">Instagram</button>
+        <button class="chip" data-value="indicacao">Indicação</button>
+        <button class="chip" data-value="linkedin">LinkedIn</button>
+        <button class="chip" data-value="prospeccao">Prospecção ativa</button>
+        <button class="chip" data-value="comunidade">Comunidade</button>
+        <button class="chip" data-value="trafego">Tráfego</button>
+        <button class="chip" data-value="evento">Evento</button>
+        <button class="chip" data-value="outro">Outro</button>
+      </div>
+    </div>
+
+    <div class="meta-row">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="abordado">Abordado</option>
+          <option value="respondeu">Respondeu</option>
+          <option value="agendado">Agendado</option>
+          <option value="nao-respondeu">Não respondeu</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Observação</label>
+        <input type="text" id="f-obs" placeholder="Nota rápida..." autocomplete="off">
+      </div>
+    </div>
+
+    <button class="btn-add" id="btn-add" onclick="addLead()">+ Registrar abordagem</button>
+  </aside>
+
+  <!-- LIST -->
+  <section class="panel-list">
+    <div class="list-header">
+      <div>
+        <div class="panel-eyebrow">Pipeline do dia</div>
+        <div class="panel-heading" style="margin-bottom:0;">Abordagens registradas</div>
+      </div>
+      <div class="export-btns">
+        <button class="btn-export" onclick="exportCSV()">
+          <svg viewBox="0 0 24 24"><path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/></svg>
+          Exportar CSV
+        </button>
+        <button class="btn-export" onclick="openSheet()">
+          <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Abrir planilha
+        </button>
+      </div>
+    </div>
+
+    <div id="empty-state" class="empty-state">
+      <div class="empty-logo">SALES<span class="slash">/</span>CAPITAL</div>
+      <div class="empty-line"></div>
+      <p>Nenhuma abordagem registrada</p>
+      <p style="opacity:0.35;">Preencha o formulário ao lado</p>
+    </div>
+
+    <table class="leads-table" id="leads-table" style="display:none;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nome</th>
+          <th>Contato</th>
+          <th>Origem</th>
+          <th>Status</th>
+          <th>Obs.</th>
+          <th>Hora</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="leads-tbody"></tbody>
+    </table>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ─── LABELS ─── */
+  const OL = { instagram:'Instagram', indicacao:'Indicação', linkedin:'LinkedIn', prospeccao:'Prospecção ativa', comunidade:'Comunidade', trafego:'Tráfego', evento:'Evento', outro:'Outro' };
+  const SL = { abordado:'Abordado', respondeu:'Respondeu', agendado:'Agendado', 'nao-respondeu':'Não respondeu' };
+
+  /* ─── STATE ─── */
+  let leads   = JSON.parse(localStorage.getItem('sc_leads')   || '[]');
+  let sheetUrl = localStorage.getItem('sc_sheet_url') || '';
+  let origem  = '';
+  let toastTimer;
+  let isSending = false;
+
+  /* ─── INIT ─── */
+  function init() {
+    document.getElementById('nav-date').textContent =
+      new Date().toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' });
+
+    document.querySelectorAll('.chip').forEach(c => {
+      c.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+        origem = c.dataset.value;
+      });
+    });
+
+    if (sheetUrl) {
+      document.getElementById('setup-banner').classList.add('hidden');
+      setSyncStatus('idle', 'Planilha conectada');
+    } else {
+      setSyncStatus('none', 'Sem conexão');
+    }
+
+    render();
+  }
+
+  /* ─── URL SETUP ─── */
+  function saveUrl() {
+    const val = document.getElementById('url-input').value.trim();
+    if (!val.startsWith('https://script.google.com')) {
+      toast('URL inválida — cole a URL do Apps Script'); return;
+    }
+    sheetUrl = val;
+    localStorage.setItem('sc_sheet_url', sheetUrl);
+    document.getElementById('setup-banner').classList.add('hidden');
+    setSyncStatus('idle', 'Planilha conectada');
+    toast('Planilha conectada com sucesso');
+    retrySending();
+  }
+
+  function openSheet() {
+    if (!sheetUrl) { toast('Nenhuma planilha configurada'); return; }
+    window.open(sheetUrl, '_blank');
+  }
+
+  /* ─── SYNC STATUS ─── */
+  function setSyncStatus(state, label) {
+    const el = document.getElementById('sync-status');
+    el.className = 'sync-status';
+    if (state === 'ok')      el.classList.add('ok');
+    if (state === 'error')   el.classList.add('error');
+    if (state === 'sending') el.classList.add('sending');
+    document.getElementById('sync-label').textContent = label;
+  }
+
+  /* ─── ADD LEAD ─── */
+  async function addLead() {
+    const nome    = document.getElementById('f-nome').value.trim();
+    const contato = document.getElementById('f-contato').value.trim();
+    const status  = document.getElementById('f-status').value;
+    const obs     = document.getElementById('f-obs').value.trim();
+    if (!nome)    { toast('Informe o nome do lead'); return; }
+    if (!contato) { toast('Informe o contato ou perfil'); return; }
+    if (!origem)  { toast('Selecione a origem do lead'); return; }
+
+    const lead = {
+      id: Date.now(), nome, contato, origem, status, obs,
+      hora: new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
+      data: new Date().toLocaleDateString('pt-BR'),
+      timestamp: new Date().toISOString(),
+      synced: false
+    };
+
+    leads.unshift(lead);
+    save(); render(); clearForm();
+    toast('Abordagem registrada');
+
+    if (sheetUrl) {
+      await sendToSheet(lead);
+    } else {
+      toast('Salvo localmente — configure a planilha para sincronizar');
+    }
+  }
+
+  /* ─── SEND TO SHEET ─── */
+  async function sendToSheet(lead) {
+    if (!sheetUrl) return;
+    setSyncStatus('sending', 'Enviando...');
+    isSending = true;
+    document.getElementById('btn-add').disabled = true;
+
+    try {
+      const params = new URLSearchParams({
+        data:      lead.data,
+        hora:      lead.hora,
+        nome:      lead.nome,
+        contato:   lead.contato,
+        origem:    OL[lead.origem] || lead.origem,
+        status:    SL[lead.status] || lead.status,
+        obs:       lead.obs || '',
+        timestamp: lead.timestamp
+      });
+
+      await fetch(sheetUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+
+      /* no-cors means we can't read the response, so we optimistically mark as synced */
+      lead.synced = true;
+      save(); render();
+      setSyncStatus('ok', 'Sincronizado');
+      setTimeout(() => setSyncStatus('idle', 'Planilha conectada'), 3000);
+
+    } catch (err) {
+      lead.synced = false;
+      save(); render();
+      setSyncStatus('error', 'Falha — tente novamente');
+      toast('Erro ao sincronizar — dado salvo localmente');
+    } finally {
+      isSending = false;
+      document.getElementById('btn-add').disabled = false;
+    }
+  }
+
+  /* ─── RETRY PENDING ─── */
+  async function retrySending() {
+    const pending = leads.filter(l => !l.synced);
+    for (const lead of pending) {
+      await sendToSheet(lead);
+    }
+  }
+
+  /* ─── DELETE ─── */
+  function deleteLead(id) {
+    leads = leads.filter(l => l.id !== id);
+    save(); render();
+  }
+
+  /* ─── HELPERS ─── */
+  function clearForm() {
+    ['f-nome','f-contato','f-obs'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-status').value = 'abordado';
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    origem = '';
+  }
+
+  function save() {
+    localStorage.setItem('sc_leads', JSON.stringify(leads));
+  }
+
+  /* ─── RENDER ─── */
+  function render() {
+    const table = document.getElementById('leads-table');
+    const empty = document.getElementById('empty-state');
+    const tbody = document.getElementById('leads-tbody');
+
+    table.style.display = leads.length ? 'table' : 'none';
+    empty.style.display = leads.length ? 'none'  : 'flex';
+
+    tbody.innerHTML = leads.map((l, i) => {
+      const syncClass = l.synced ? 'synced' : (sheetUrl ? 'pending' : 'pending');
+      const syncTitle = l.synced ? 'Sincronizado com a planilha' : 'Pendente de sincronização';
+      return `<tr>
+        <td class="row-num">${leads.length - i}</td>
+        <td class="lead-name">${e(l.nome)}</td>
+        <td class="lead-contact" title="${e(l.contato)}">${e(l.contato)}</td>
+        <td><span class="badge b-${l.origem}">${OL[l.origem]||l.origem}</span></td>
+        <td class="status-text">${SL[l.status]||l.status}</td>
+        <td class="lead-obs" title="${e(l.obs)}">${l.obs ? e(l.obs) : '—'}</td>
+        <td class="lead-time">${l.hora}</td>
+        <td title="${syncTitle}"><span class="sync-row-dot ${syncClass}"></span></td>
+        <td><button class="btn-del" onclick="deleteLead(${l.id})">×</button></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('s-total').textContent  = leads.length;
+    document.getElementById('s-ig').textContent     = leads.filter(l=>l.origem==='instagram').length;
+    document.getElementById('s-ind').textContent    = leads.filter(l=>l.origem==='indicacao').length;
+    document.getElementById('s-outros').textContent = leads.filter(l=>!['instagram','indicacao'].includes(l.origem)).length;
+  }
+
+  /* ─── EXPORT CSV ─── */
+  function exportCSV() {
+    if (!leads.length) { toast('Nada para exportar ainda'); return; }
+    const h = 'Data,Hora,Nome,Contato,Origem,Status,Observacao,Sincronizado';
+    const rows = leads.map(l => [
+      l.data||'', l.hora,
+      q(l.nome), q(l.contato),
+      q(OL[l.origem]||l.origem), q(SL[l.status]||l.status),
+      q(l.obs||''), l.synced ? 'Sim' : 'Não'
+    ].join(','));
+    dl('sc_abordagens_'+ds()+'.csv', [h,...rows].join('\n'), 'text/csv');
+    toast('CSV exportado');
+  }
+
+  function dl(name, content, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF'+content], {type:type+';charset=utf-8'}));
+    a.download = name; a.click();
+  }
+
+  function e(s)  { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function q(s)  { return '"'+(s||'').replace(/"/g,'""')+'"'; }
+  function ds()  { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  function setSyncStatus(state, label) {
+    const el = document.getElementById('sync-status');
+    el.className = 'sync-status';
+    if (state === 'ok')      el.classList.add('ok');
+    if (state === 'error')   el.classList.add('error');
+    if (state === 'sending') el.classList.add('sending');
+    if (state === 'idle')    el.classList.add('ok');
+    document.getElementById('sync-label').textContent = label;
+  }
+
+  init();
+</script>
+</body>
+</html>
